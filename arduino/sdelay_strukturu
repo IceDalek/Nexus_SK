@@ -1,0 +1,98 @@
+#include <math.h>
+#include <ros.h>
+#include <ros/time.h>
+#include <std_msgs/Int16.h>
+#include <std_msgs/Float32.h>
+
+#define pin_A1 3 // Энкодер пин A
+#define pin_B1  2 // Энкодер пин B
+#define pin_A2 19 // Энкодер пин A
+#define pin_B2  18 // Энкодер пин B
+
+#define WHR 0.072 //m
+#define CPR 770 
+#define WHEEL_LENGTH 2*PI*WHR
+#define WHEEL_SEP 0.3
+
+volatile long Position_enc1 = 0;
+volatile long Position_enc2 = 0;
+float p1 =0;
+float p2 =0;
+float x=0,y=0;
+
+ros::NodeHandle nh;
+
+void Encoder1_Rotate() {
+  if (digitalRead(pin_A1) == digitalRead(pin_B1)) {
+    Position_enc1++;
+  } else {
+    Position_enc1--;
+  }
+}
+
+
+void Encoder2_Rotate() {
+  if (digitalRead(pin_A2) == digitalRead(pin_B2)) {
+    Position_enc2++;
+  } else {
+    Position_enc2--;
+  }
+}
+
+void whcalk(int ticks,int ticks2)
+{
+     p1=ticks/CPR*WHEEL_LENGTH;
+     p2=ticks2/CPR*WHEEL_LENGTH;
+}
+
+void set_rspd( const std_msgs::Float32& msg)
+{
+  //if(msg.data<0)
+//set msg.data as motor speed backward;
+  // else
+//set msg.data as motor speed forward;
+}
+
+void set_lspd( const std_msgs::Float32& msg)
+{
+  //if(msg.data<0)
+//set msg.data as motor speed backward;
+  //else
+//set msg.data as motor speed forward;
+}
+
+std_msgs::Int16 msg;
+ros::Publisher lwpub("lwheel", &msg);
+ros::Publisher rwpub("rwheel", &msg);
+ros::Subscriber<std_msgs::Float32> rmotor("rmotor_cmd", set_rspd );
+ros::Subscriber<std_msgs::Float32> lmotor("lmotor_cmd", set_lspd );
+
+void setup() {
+  nh.initNode();
+  nh.advertise(lwpub);
+  nh.advertise(rwpub);
+  nh.subscribe(rmotor);
+  nh.subscribe(lmotor);
+  
+  pinMode(pin_A1, INPUT);
+  pinMode(pin_B1, INPUT);
+   pinMode(pin_A2, INPUT);
+  pinMode(pin_B2, INPUT);
+  attachInterrupt(digitalPinToInterrupt(pin_A1), Encoder1_Rotate, RISING);
+  attachInterrupt(digitalPinToInterrupt(pin_A2), Encoder2_Rotate, RISING);
+}
+
+void loop() {
+
+   while (!nh.connected())
+  {
+    nh.spinOnce();
+  }
+  
+   msg.data = Position_enc1;
+   rwpub.publish( &msg );
+   msg.data = Position_enc2;
+   lwpub.publish( &msg );
+   nh.spinOnce();
+   delay(10);
+}
